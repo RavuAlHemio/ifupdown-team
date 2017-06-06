@@ -1,2 +1,4 @@
 if-down.d/* text eol=lf
+if-post-down.d/* text eol=lf
+if-pre-up.d/* text eol=lf
 if-up.d/* text eol=lf
