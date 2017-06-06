@@ -150,6 +150,12 @@ setup_master()
 }
 _END
 
+    if [ "$VERBOSITY" = 1 ]
+    then
+        echo "setting up team config:" >&2
+        cat "/run/network/team-$IFACE.conf" >&2
+    fi
+
     teamd -d -f "/run/network/team-$IFACE.conf" -p "/run/network/team-$IFACE.pid"
 }
 
