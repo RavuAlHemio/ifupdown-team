@@ -7,7 +7,8 @@ teardown_master()
 {
     if [ -s "/run/network/team-$IFACE.pid" ]
     then
-        teamd -k -p "/run/network/team-$IFACE.pid"
+        kill "$(cat /run/network/team-$IFACE.pid)"
+        rm "/run/network/team-$IFACE.pid"
     fi
 }
 
