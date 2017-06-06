@@ -1,0 +1,130 @@
+#!/bin/sh
+
+[ "$VERBOSITY" = 1 ] && set -x
+[ "$ADDRFAM" = meta ] && exit 0
+
+is_not_number()
+{
+    echo "$1" | egrep -q '^[0-9]+$' && return 1
+    return 0
+}
+
+json_escape_string()
+{
+    echo "$1" | sed -e 's_\\_\\\\_g' -e 's_"_\\"_g'
+}
+
+get_numeric()
+{
+    env_value="$1"
+    default_value="$2"
+    config_name="$3"
+
+    value="$env_value"
+    if [ -z "$value" ]
+    then
+        value="$default_value"
+    fi
+
+    if is_not_number "$value"
+    then
+        echo "$config_name must be numeric" >&2
+        exit 1
+    fi
+
+    echo "$value"
+}
+
+get_required_string()
+{
+    env_value="$1"
+    config_name="$2"
+    option_description="$3"
+
+    if [ -z "$env_value" ]
+    then
+        if [ -z "$option_description" ]
+        then
+            echo "$option_description requires a value for $config_name" >&2
+            exit 1
+        else
+            echo "$config_name is required" >&2
+            exit 1
+        fi
+    fi
+
+    echo "$env_value"
+}
+
+get_required_json_escaped_string()
+{
+    env_value="$1"
+    config_name="$2"
+    option_description="$3"
+
+    value="$(get_required_string "$env_value" "$config_name" "$option_description")"
+    echo "$(json_escape_string "$value")"
+}
+
+setup_master()
+{
+    runner="${IF_TEAM_RUNNER:-activebackup}"
+    link_watch="${IF_TEAM_LINK_WATCH:-ethtool}"
+
+    link_watch_config='{}'
+    case "$link_watch" in
+        ethtool)
+            link_watch_config="{\"name\":\"ethtool\"}"
+            ;;
+        arp-ping)
+            interval="$(get_numeric_value IF_TEAM_LINK_WATCH_INTERVAL 100 team-link-watch-interval)"
+            missed_max="$(get_numeric_value IF_TEAM_LINK_WATCH_MISSED_MAX 20 team-link-watch-missed-max)"
+            escaped_source_host="$(get_required_json_escaped_string "$IF_TEAM_LINK_WATCH_SOURCE_HOST" "team-link-watch 'arp-ping'" "team-link-watch-source-host")"
+            escaped_target_host="$(get_required_json_escaped_string "$IF_TEAM_LINK_WATCH_TARGET_HOST" "team-link-watch 'arp-ping'" "team-link-watch-target-host")"
+
+            link_watch_config="{\"name\":\"arp_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"source_host\":\"$escaped_source_host\",\"target_host\":\"$escaped_target_host\"}"
+            ;;
+        nsna-ping)
+            interval="$(get_numeric_value IF_TEAM_LINK_WATCH_INTERVAL 100 team-link-watch-interval)"
+            missed_max="$(get_numeric_value IF_TEAM_LINK_WATCH_MISSED_MAX 20 team-link-watch-missed-max)"
+            escaped_target_host="$(get_required_json_escaped_string "$IF_TEAM_LINK_WATCH_TARGET_HOST" "team-link-watch 'arp-ping'" "team-link-watch-target-host")"
+
+            link_watch_config="{\"name\":\"arp_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"target_host\":\"$escaped_target_host\"}"
+            ;;
+        *)
+            echo "Unknown team-link-watch value '$link_watch'" >&2
+            exit 1
+            ;;
+    esac
+
+    escaped_iface="$(json_escape_string "$IFACE")"
+    escaped_runner="$(json_escape_string "$runner")"
+
+    ports=""
+    for slave_port in $IF_TEAM_SLAVES
+    do
+        escaped_slave_port="$(json_escape_string "$slave_port")"
+        if [ -z "$ports" ]
+        then
+            ports="\"$escaped_slave_port\":{}"
+        else
+            ports="$ports,\"$escaped_slave_port\":{}"
+        fi
+    done
+
+    cat >"/run/network/team-$IFACE.conf" <<_END
+{
+    "device": "$escaped_iface",
+    "runner": {"name": "$escaped_runner"},
+    "link_watch": $link_watch_config,
+    "ports": {$ports}
+}
+_END
+
+    teamd -d -f "/run/network/team-$IFACE.conf" -p "/run/network/team-$IFACE.pid"
+}
+
+if [ -n "$IF_TEAM_SLAVES" ]
+then
+    setup_master
+fi

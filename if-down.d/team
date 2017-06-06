@@ -1,0 +1,17 @@
+#!/bin/sh
+
+[ "$VERBOSITY" = 1 ] && set -x
+[ "$ADDRFAM" = meta ] && exit 0
+
+teardown_master()
+{
+    if [ -s "/run/network/team-$IFACE.pid" ]
+    then
+        teamd -k -p "/run/network/team-$IFACE.pid"
+    fi
+}
+
+if [ -n "$IF_TEAM_SLAVES" ]
+then
+    teardown_master
+fi
