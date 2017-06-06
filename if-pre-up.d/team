@@ -91,7 +91,7 @@ setup_master()
     runner="${IF_TEAM_RUNNER:-activebackup}"
     link_watch="${IF_TEAM_LINK_WATCH:-ethtool}"
 
-    link_watch_config='{}'
+    link_watch_configs='{}'
     case "$link_watch" in
         ethtool)
             link_watch_config="{\"name\":\"ethtool\"}"
@@ -105,7 +105,7 @@ setup_master()
             link_watch_prefix="{\"name\":\"arp_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"source_host\":\"$escaped_source_host\",\"target_host\":\""
             link_watch_suffix="\"}"
 
-            link_watch_configs="$(get_link_watch_configs "$link_watch_prefix" "$link_watch_suffix")"
+            link_watch_configs="$(get_link_watch_configs "$link_watch_prefix" "$link_watch_suffix" "$escaped_target_hosts")"
             ;;
         nsna-ping)
             interval="$(get_numeric_value IF_TEAM_LINK_WATCH_INTERVAL 100 team-link-watch-interval)"
@@ -115,7 +115,7 @@ setup_master()
             link_watch_prefix="{\"name\":\"nsna_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"target_host\":\""
             link_watch_suffix="\"}"
 
-            link_watch_configs="$(get_link_watch_configs "$link_watch_prefix" "$link_watch_suffix")"
+            link_watch_configs="$(get_link_watch_configs "$link_watch_prefix" "$link_watch_suffix" "$escaped_target_hosts")"
             ;;
         *)
             echo "Unknown team-link-watch value '$link_watch'" >&2
