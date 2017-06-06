@@ -66,6 +66,26 @@ get_required_json_escaped_string()
     echo "$(json_escape_string "$value")"
 }
 
+get_link_watch_configs()
+{
+    link_watch_prefix="$1"
+    link_watch_suffix="$2"
+    escaped_target_hosts="$3"
+
+    link_watch_configs=""
+    for escaped_target_host in $escaped_target_hosts
+    do
+        if [ -z "$link_watch_configs" ]
+        then
+            link_watch_configs="$link_watch_prefix$escaped_target_host$link_watch_suffix"
+        else
+            link_watch_configs="$link_watch_configs,$link_watch_prefix$escaped_target_host$link_watch_suffix"
+        done
+    done
+
+    echo "$link_watch_configs"
+}
+
 setup_master()
 {
     runner="${IF_TEAM_RUNNER:-activebackup}"
@@ -80,16 +100,22 @@ setup_master()
             interval="$(get_numeric_value IF_TEAM_LINK_WATCH_INTERVAL 100 team-link-watch-interval)"
             missed_max="$(get_numeric_value IF_TEAM_LINK_WATCH_MISSED_MAX 20 team-link-watch-missed-max)"
             escaped_source_host="$(get_required_json_escaped_string "$IF_TEAM_LINK_WATCH_SOURCE_HOST" "team-link-watch 'arp-ping'" "team-link-watch-source-host")"
-            escaped_target_host="$(get_required_json_escaped_string "$IF_TEAM_LINK_WATCH_TARGET_HOST" "team-link-watch 'arp-ping'" "team-link-watch-target-host")"
+            escaped_target_hosts="$(get_required_json_escaped_string "$IF_TEAM_LINK_WATCH_TARGET_HOST" "team-link-watch 'arp-ping'" "team-link-watch-target-host")"
 
-            link_watch_config="{\"name\":\"arp_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"source_host\":\"$escaped_source_host\",\"target_host\":\"$escaped_target_host\"}"
+            link_watch_prefix="{\"name\":\"arp_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"source_host\":\"$escaped_source_host\",\"target_host\":\""
+            link_watch_suffix="\"}"
+
+            link_watch_configs="$(get_link_watch_configs "$link_watch_prefix" "$link_watch_suffix")"
             ;;
         nsna-ping)
             interval="$(get_numeric_value IF_TEAM_LINK_WATCH_INTERVAL 100 team-link-watch-interval)"
             missed_max="$(get_numeric_value IF_TEAM_LINK_WATCH_MISSED_MAX 20 team-link-watch-missed-max)"
             escaped_target_host="$(get_required_json_escaped_string "$IF_TEAM_LINK_WATCH_TARGET_HOST" "team-link-watch 'arp-ping'" "team-link-watch-target-host")"
 
-            link_watch_config="{\"name\":\"arp_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"target_host\":\"$escaped_target_host\"}"
+            link_watch_prefix="{\"name\":\"nsna_ping\",\"interval\":$interval,\"missed_max\":$missed_max,\"target_host\":\""
+            link_watch_suffix="\"}"
+
+            link_watch_configs="$(get_link_watch_configs "$link_watch_prefix" "$link_watch_suffix")"
             ;;
         *)
             echo "Unknown team-link-watch value '$link_watch'" >&2
@@ -119,7 +145,7 @@ setup_master()
 {
     "device": "$escaped_iface",
     "runner": {"name": "$escaped_runner"},
-    "link_watch": $link_watch_config,
+    "link_watch": [$link_watch_configs],
     "ports": {$ports}
 }
 _END
