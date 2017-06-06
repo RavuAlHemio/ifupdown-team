@@ -80,7 +80,7 @@ get_link_watch_configs()
             link_watch_configs="$link_watch_prefix$escaped_target_host$link_watch_suffix"
         else
             link_watch_configs="$link_watch_configs,$link_watch_prefix$escaped_target_host$link_watch_suffix"
-        done
+        fi
     done
 
     echo "$link_watch_configs"
