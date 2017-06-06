@@ -103,6 +103,9 @@ setup_master()
     ports=""
     for slave_port in $IF_TEAM_SLAVES
     do
+        # teamd will only adopt the port if it's down
+        ip link set "$slave_port" down
+
         escaped_slave_port="$(json_escape_string "$slave_port")"
         if [ -z "$ports" ]
         then
